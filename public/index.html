@@ -72,6 +72,7 @@ h3{margin:0 0 12px;font-family:var(--disp);font-weight:800;font-size:22px}
 .cp{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:var(--navy2);color:#fff;cursor:pointer;flex:none}
 .cp:disabled{opacity:.35;cursor:default}
 @media (prefers-reduced-motion:reduce){.hc.latest,.hcrown{animation:none}}
+.hx{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background:rgba(0,0,0,.35);color:#fff;cursor:pointer;font-size:12px}.hx:hover{background:#b3261e}.vh input[type=date]{padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--navy2);color:var(--ink);font:inherit;color-scheme:dark}
 </style>
 </head>
 <body>
@@ -100,7 +101,8 @@ h3{margin:0 0 12px;font-family:var(--disp);font-weight:800;font-size:22px}
 <div class="card top" style="margin-top:24px"><h3>Match Videos</h3>
 <div class="vh" id="vctl" style="display:none"><input type="text" id="vtitle" maxlength="60" placeholder="Match name (e.g. Ahmed vs Sara)"><button class="btn pri" id="vup" style="display:none">⬆ Upload Video</button><button class="btn" id="vlink">🔗 Add Link</button><input type="file" id="vfile" accept="video/*" style="display:none"></div>
 <div class="vmsg" id="vmsg"></div><div id="vlist"></div></div>
-<div class="card hall" id="hall"><h3>🏆 Hall of Champions</h3><p class="hint" style="margin:-6px 0 14px">Hover over (or tap) a champion to reveal their player ID, then copy it to add them in the game.</p><div class="hgrid" id="hlist"></div></div>
+<div class="card hall" id="hall"><h3>🏆 Hall of Champions</h3><p class="hint" style="margin:-6px 0 14px">Hover over (or tap) a champion to reveal their player ID, then copy it to add them in the game.</p><div class="vh" id="hadd" style="display:none"><input type="text" id="hname" maxlength="20" placeholder="Champion name"><input type="date" id="hdate"><input type="text" id="hid" maxlength="40" placeholder="Player ID (optional)"><button class="btn pri" id="hbtn">+ Add Champion</button></div>
+<div class="hgrid" id="hlist"></div></div>
 <div class="modal" id="modal"><div class="mb"><h3>📜 Rules</h3><ol><li>100 lvl system only</li><li>Fights to 3 win. Loser left.</li><li>DC doesn't count, except you will kill all staff or destroy 100% of castle.</li><li>Both opponents must take a record and post it.</li></ol><button class="btn pri" id="mclose">Got it</button></div></div>
 </div>
 <script>
@@ -281,24 +283,44 @@ function copyText(t,btn){
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok,fb)}else fb();
 }
 function drawHall(){
+  var ha=document.getElementById('hadd');if(ha)ha.style.display=canWrite?'flex':'none';
   var a=document.activeElement;if(a&&a.closest&&a.closest('#hall'))return;
   var c=document.getElementById('hlist');if(!c)return;
   if(!champs.length){c.innerHTML='<p class="hint">No champions yet. The first name on this wall could be yours!</p>';return}
   var idx=champs.map(function(x,i){return i}).reverse();
   c.innerHTML=idx.map(function(i,n){
     var x=champs[i];
-    return '<div class="hc'+(n===0?' latest':'')+(canWrite?' adm':'')+'">'+(n===0?'<div class="badge">LATEST CHAMPION</div>':'')+
+    return '<div class="hc'+(n===0?' latest':'')+(canWrite?' adm':'')+'">'+(canWrite?'<button class="hx" data-x="'+i+'" title="Remove">\u2715</button>':'')+(n===0?'<div class="badge">LATEST CHAMPION</div>':'')+
     '<img class="hcrown" src="'+CROWN+'" alt=""><div class="hn">'+esc(x.name)+'</div><div class="hd">🏆 '+fmtDate(x.t)+'</div>'+
     '<div class="cid">'+(canWrite?'<input data-id="'+i+'" value="'+esc(x.id||'')+'" maxlength="40" placeholder="Set player ID">':'<code>'+(x.id?esc(x.id):'ID not set')+'</code>')+
     '<button class="cp" data-cp="'+i+'" title="Copy ID"'+(x.id||canWrite?'':' disabled')+'>📋</button></div></div>';
   }).join('');
   c.querySelectorAll('.hc').forEach(function(el){el.onclick=function(e){if(e.target.closest('button,input'))return;el.classList.toggle('open')}});
   c.querySelectorAll('input[data-id]').forEach(function(el){el.addEventListener('change',function(){champs[+el.dataset.id].id=el.value.trim();save()})});
+  c.querySelectorAll('button[data-x]').forEach(function(b){b.onclick=function(e){
+    e.stopPropagation();
+    if(!confirm('Remove this champion from the Hall of Champions?'))return;
+    champs.splice(+b.dataset.x,1);
+    if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
+    save();draw();
+  }});
   c.querySelectorAll('button[data-cp]').forEach(function(b){b.onclick=function(){
     var i=+b.dataset.cp,inp=b.parentNode.querySelector('input'),v=(inp?inp.value:champs[i].id)||'';
     if(v)copyText(v.trim(),b);
   }});
 }
+document.getElementById('hbtn').onclick=function(){
+  if(!canWrite)return;
+  var n=document.getElementById('hname').value.trim();
+  if(!n){alert('Enter the champion name.');return}
+  var dv=document.getElementById('hdate').value,t=dv?new Date(dv+'T12:00:00').getTime():Date.now();
+  if(!isFinite(t))t=Date.now();
+  champs.push({name:n.slice(0,20),t:t,id:document.getElementById('hid').value.trim().slice(0,40),k:null});
+  champs.sort(function(a,b){return a.t-b.t});
+  ['hname','hdate','hid'].forEach(function(i){document.getElementById(i).value=''});
+  if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
+  save();draw();
+};
 var _draw=draw;draw=function(){_draw();drawTimer();drawHall()};
 setInterval(drawTimer,1000);
 var md=document.getElementById('modal');
