@@ -1,7 +1,7 @@
 const URL_ = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
 const TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
 const KEY = "castle-busters";
-const EMPTY = { names: Array(8).fill(""), sc: Array.from({ length: 7 }, () => [0, 0]), videos: [] };
+const EMPTY = { names: Array(8).fill(""), sc: Array.from({ length: 7 }, () => [0, 0]), videos: [], startedAt: null, finishedAt: null, champs: [] };
 
 async function redis(cmd) {
   const r = await fetch(URL_, {
@@ -22,7 +22,11 @@ function clean(s) {
   const videos = (Array.isArray(s.videos) ? s.videos : []).slice(0, 100)
     .map((v) => ({ kind: v && v.kind === "file" ? "file" : "link", url: String((v && v.url) || "").slice(0, 500), title: String((v && v.title) || "").slice(0, 60) }))
     .filter((v) => /^https?:\/\//i.test(v.url));
-  return { names, sc, videos };
+  const num = (v) => { const n = Number(v); return v && Number.isFinite(n) ? n : null; };
+  const champs = (Array.isArray(s.champs) ? s.champs : []).slice(-200)
+    .map((c) => ({ name: String((c && c.name) || "").slice(0, 20), t: Number(c && c.t) || 0, id: String((c && c.id) || "").slice(0, 40), k: num(c && c.k) }))
+    .filter((c) => c.name);
+  return { names, sc, videos, startedAt: num(s.startedAt), finishedAt: num(s.finishedAt), champs };
 }
 
 module.exports = async (req, res) => {
