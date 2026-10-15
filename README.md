@@ -10,3 +10,4 @@ Everyone can WATCH (no login). Admins click "Admin Login" and type the password 
 
 Optional video upload (50 MB): create a free Cloudinary account, add an UNSIGNED upload preset, then add env vars
 CLOUDINARY_CLOUD_NAME and CLOUDINARY_UPLOAD_PRESET and redeploy.
+v2
