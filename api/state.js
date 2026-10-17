@@ -1,7 +1,7 @@
 const URL_ = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
 const TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
 const KEY = "castle-busters";
-const EMPTY = { names: Array(8).fill(""), sc: Array.from({ length: 8 }, () => [0, 0]), videos: [], startedAt: null, finishedAt: null, champs: [] };
+const EMPTY = { names: Array(8).fill(""), sc: Array.from({ length: 8 }, () => [0, 0]), videos: [], startedAt: null, finishedAt: null, champs: [], size: 8 };
 
 async function redis(cmd) {
   const r = await fetch(URL_, {
@@ -13,13 +13,14 @@ async function redis(cmd) {
 }
 
 function clean(s) {
-  if (!s || !Array.isArray(s.names) || s.names.length !== 8 || !Array.isArray(s.sc) || (s.sc.length !== 7 && s.sc.length !== 8)) return null;
+  const size = s && s.size === 16 ? 16 : 8;
+  if (!s || !Array.isArray(s.names) || s.names.length !== size || !Array.isArray(s.sc) || (s.sc.length !== size - 1 && s.sc.length !== size)) return null;
   const names = s.names.map((n) => String(n || "").slice(0, 20));
   const sc = s.sc.map((p) => {
     if (!Array.isArray(p) || p.length !== 2) throw new Error("bad");
     return p.map((v) => { const n = Number(v); if (!Number.isInteger(n) || n < 0 || n > 3) throw new Error("bad"); return n; });
   });
-  while (sc.length < 8) sc.push([0, 0]);
+  while (sc.length < size) sc.push([0, 0]);
   const videos = (Array.isArray(s.videos) ? s.videos : []).slice(0, 100)
     .map((v) => ({ kind: v && v.kind === "file" ? "file" : "link", url: String((v && v.url) || "").slice(0, 500), title: String((v && v.title) || "").slice(0, 60) }))
     .filter((v) => /^https?:\/\//i.test(v.url));
@@ -29,7 +30,7 @@ function clean(s) {
   const champs = (Array.isArray(s.champs) ? s.champs : []).slice(-200)
     .map((c) => ({ name: String((c && c.name) || "").slice(0, 20), t: Number(c && c.t) || 0, id: String((c && c.id) || "").slice(0, 40), k: num(c && c.k), w: cnt(c && c.w), l: cnt(c && c.l), p2: person(c && c.p2), p3: person(c && c.p3) }))
     .filter((c) => c.name);
-  return { names, sc, videos, startedAt: num(s.startedAt), finishedAt: num(s.finishedAt), champs };
+  return { names, sc, videos, startedAt: num(s.startedAt), finishedAt: num(s.finishedAt), champs, size };
 }
 
 module.exports = async (req, res) => {
